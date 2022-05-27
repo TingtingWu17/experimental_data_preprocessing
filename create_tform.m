@@ -1,10 +1,11 @@
 %caculate tform_x2y; means y_real_loc = tfrom(give x channel), or x_real_loc = tfrom_inverse(give y channel)
 
-fileFolder = [pwd '\example_data_for_tform\saved_beads_loc_for_tform\'];
+fileFolder = "E:\Experimental_data\20220429 A1-LCD\processed data\saved_beads_loc_for_tform\";
 mainDirContents = dir(fileFolder);
 mask = endsWith({mainDirContents.name},'tform');
 mainDirContents(~mask)=[];
 
+W = 1748/2;
 %% combine all data into the save matrix
 dataX = []; frameX = 0;
 dataY = []; frameY = 0;
@@ -34,16 +35,22 @@ end
 end
 end
 end
-dataY(:,2) = 1024-dataY(:,2);
+dataY(:,2) = W-dataY(:,2);
+
+figure();
+scatter(dataX(:,2),dataX(:,3),'filled');
+hold on;
+scatter(dataY(:,2)+W,dataY(:,3),'filled');
+axis image
 %% create tform
 %prepare data
 pixel_sz = 1;
-photonThred = 1000; % in photon for y channel
-ratio_y2x = 1.145;
+photonThred = 500; % in photon for y channel
+ratio_y2x = 1;
 
-center = [469,198]; %in pixel; directly get from the y channel image where the sample is located; have not flip the data
-center(1) = 1024-center(1);
-ROI = 350;
+center = [466,327]; %in pixel; directly get from the y channel image where the sample is located; have not flip the data
+center(1) = W-center(1);
+ROI = 150;
 
 %filter data and process data
 %filter dim estimations
@@ -89,7 +96,6 @@ plot_pairs(dataX_paired,dataY_paired,[], [],tform_y2x); axis image;
 fixedPoints = dataY_paired(:,[2,3]);
 movingPoints = dataX_paired(:,[2,3]);
 tformx2y = images.geotrans.PolynomialTransformation2D(movingPoints,fixedPoints,4);
-%tformx2y = fitgeotrans(movingPoints,fixedPoints,'nonreflectivesimilarity');
 dataX_inver = transformPointsInverse(tformx2y,fixedPoints);
 
 figure(); 
@@ -97,7 +103,7 @@ scatter(dataX_paired(:,2),dataX_paired(:,3),10,'filled','r'); axis image
 hold on;
 scatter(dataX_inver(:,1),dataX_inver(:,2),10,'filled','g');axis image
 
-save(strcat(fileFolder,'tformx2y_y_center_',num2str(1024-center(1)),'_',num2str(center(2)),'_FoV_',num2str(ROI),'.mat'),'tformx2y');
+save(strcat(fileFolder,'tformx2y_y_center_',num2str(W-center(1)),'_',num2str(center(2)),'_FoV_',num2str(ROI),'.mat'),'tformx2y');
 %% function
 function loss = lossCaculate(tform_y2x,dataX,dataY)
 x_dataX = dataX(:,2);
@@ -150,6 +156,9 @@ dataX_paired = [];
 dataY_paired = [];
 for ii = 1:dataX(end,1)
 
+    if ii==35
+aaa = 1;
+    end
     x_dataX_cur = x_dataX(dataX(:,1)==ii);
     y_dataX_cur = y_dataX(dataX(:,1)==ii);
     I_dataX_cur = I_dataX(dataX(:,1)==ii);

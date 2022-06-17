@@ -1,4 +1,4 @@
-ID = [14:16];
+ID = [18:25];
 
 for kk = 1:length(ID)
     kk
@@ -20,7 +20,7 @@ imgSzy = size(SM_img,1);
 SM_img_offset =offset;
 SM_img = SM_img-SM_img_offset;
 %%
-fileName1 = [[fileFolder,'processed data\BKG_list_data9_16\data'],  num2str(ID(kk)) '_xch.csv'];
+fileName1 = [[fileFolder,'processed data3\BKG_list_data18_25\data'],  num2str(ID(kk)) '_xch.csv'];
 data = readtable(fileName1);
 
 %
@@ -31,7 +31,7 @@ frameN_X = data.frame;
 %figure(); scatter(x,y); axis image
 %%
 
-fileName1 = [[fileFolder,'processed data\BKG_list_data9_16\data'],  num2str(ID(kk)) '_ych.csv'];
+fileName1 = [[fileFolder,'processed data3\BKG_list_data18_25\data'],  num2str(ID(kk)) '_ych.csv'];
 data = readtable(fileName1);
 
 %
@@ -44,13 +44,14 @@ SM_img_subtractX = SM_img(:,(1:imgSzx)+imgSzx,:);
 SM_img_subtractY = SM_img(:,(1:imgSzx),:); 
 %clear SM_img
 %%
+sizePSF = 15;
 count = 0;
 for i = 1:Nimg
     %figure(); imagesc(SM_img_subtract(:,:,i)); axis image
     for j = 1:sum(frameN_X==i)
         count = count+1;
-        rangex = [max(1,-10+round(x_X(count))):min(10+round(x_X(count)),imgSzx)];
-        rangey = [max(1,-10+round(y_X(count))):min(10+round(y_X(count)),imgSzy)];
+        rangex = [max(1,-sizePSF+round(x_X(count))):min(sizePSF+round(x_X(count)),imgSzx)];
+        rangey = [max(1,-sizePSF+round(y_X(count))):min(sizePSF+round(y_X(count)),imgSzy)];
         SM_img_subtractX(rangey,rangex,i) = nan; 
         
     end
@@ -80,6 +81,8 @@ for i=1:50:Nimg
     indx_start = max(1,i-50);
     indx_end = min(i+50,Nimg);
     back_cur = nanmean(SM_img_subtractX(:,:,indx_start:indx_end),3);
+    thred_I = prctile(back_cur(:),99.5);
+    back_cur(back_cur>thred_I)=thred_I;
     back_cur(back_cur<0)=0;
     back_cur(isnan(back_cur))=nanmean(back_cur(round(H/2)+range,round(W/2)+range),'all');
     SMLM_bkgX(:,:,count) = imgaussfilt(back_cur(:,:,:),15);
@@ -103,17 +106,20 @@ end
 %% crop FoV; copy from the the crop_save_image.m code
 %------------ copy from crop_save_image.m code----------
 
-%load(strcat('E:\Experimental_data\20220521 amyloid fibril\','processed data3\saved_beads_loc_for_tform\tformx2y_y_center_400_230_FoV_300.mat'));
-%load(strcat('E:\Experimental_data\20220530 beads\','processed data\saved_beads_loc_for_tform\tformx2y_y_center_400_230_FoV_300.mat'));
-load(strcat('E:\Experimental_data\20220530 beads\','processed data\saved_beads_loc_for_tform\tformx2y_y_center_410_200_FoV_500.mat'));
+load(strcat('E:\Experimental_data\20220530 amyloid fibril\','\processed data3\saved_beads_loc_for_tform\tformx2y_y_center_291_191_FoV_300.mat'));
+tform1 = tformx2y; tform_center1 = [291,191];
+load(strcat('E:\Experimental_data\20220530 amyloid fibril\','\processed data3\saved_beads_loc_for_tform\tformx2y_y_center_527_191_FoV_300.mat'));
+tform2 = tformx2y; tform_center2 = [527,191];
 
-ROI_centerY = [410,200];
+
+
+ROI_centerY = [409,191];
 W = 1748/2;
 ROI_centerX = transformPointsInverse(tformx2y,[W,0]+[-ROI_centerY(1),ROI_centerY(2)])+[W,0];
 
 Nimg = 1000;
-FoV = [420,220];  %[x,y]
-N_FoV = [8,4]; %[x,y]
+FoV = [475,268];  %[x,y]
+N_FoV = [9,5]; %[x,y]
 FoV_each = 80;
 
 center_x = FoV(1)/N_FoV(1)/2*[-N_FoV(1)+1:2:N_FoV(1)-1];
@@ -132,9 +138,16 @@ count = count+1;
 
 
 range = round(-(FoV_each-1)/2)+1:1:round((FoV_each-1)/2);
-SMLM_save_Nmae = ['processed data\data',num2str(ID(kk)),'_bkg_centerY_y',num2str(ROI_centerY(1)),'_x_',num2str(ROI_centerY(2)),'_','FoV',num2str(FoV(1)),'_',num2str(FoV(2)),'_',num2str(count),'th_FoV','.mat'];
+SMLM_save_Nmae = ['processed data3\data',num2str(ID(kk)),'_bkg_centerY_y',num2str(ROI_centerY(1)),'_x_',num2str(ROI_centerY(2)),'_','FoV',num2str(FoV(1)),'_',num2str(FoV(2)),'_',num2str(count),'th_FoV','.mat'];
 
 ROI_centerY_cur = round(ROI_centerY+[center_x(ii),center_y(jj)]);
+distance1 = sqrt(sum((ROI_centerY_cur-tform_center1).^2));
+distance2 = sqrt(sum((ROI_centerY_cur-tform_center2).^2));
+if distance1<distance2
+    tformx2y=tform1;
+else
+    tformx2y=tform2;
+end
 ROI_centerX_cur = round(transformPointsInverse(tformx2y,[W,0]+[-ROI_centerY_cur(1),ROI_centerY_cur(2)])+[W,0]);
 
 

@@ -1,6 +1,6 @@
 %caculate tform_x2y; means y_real_loc = tfrom(give x channel), or x_real_loc = tfrom_inverse(give y channel)
 
-fileFolder = "E:\Experimental_data\20220530 beads\processed data\saved_beads_loc_for_tform\";
+fileFolder = "E:\Experimental_data\20220530 amyloid fibril\processed data3\saved_beads_loc_for_tform\";
 mainDirContents = dir(fileFolder);
 mask = endsWith({mainDirContents.name},'tform');
 mainDirContents(~mask)=[];
@@ -38,17 +38,17 @@ end
 dataY(:,2) = W-dataY(:,2);
 
 figure();
-scatter(dataX(:,2),dataX(:,3),10,'filled');
-hold on;
-scatter(dataY(:,2)+W,dataY(:,3),10,'filled');
-axis image
+scatter(dataX(:,2),dataX(:,3),5,'filled','MarkerFaceAlpha',0.2,'MarkerEdgeAlpha',0.2);
+scatter(W+dataY(:,2),dataY(:,3),5,'filled','MarkerFaceAlpha',0.2,'MarkerEdgeAlpha',0.2);
+axis image; axis ij;
 %% create tform
 %prepare data
 pixel_sz = 1;
 photonThred = 1000; % in photon for y channel
+frame_thred = 2000;
 ratio_y2x = 1;
 
-center = [291,191]; %in pixel; directly get from the y channel image where the sample is located; have not flip the data
+center = [527,191]; %in pixel; directly get from the y channel image where the sample is located; have not flip the data
 center(1) = W-center(1);
 ROI = 300;
 
@@ -57,6 +57,8 @@ ROI = 300;
 dataX(:,5) = dataX(:,5)*ratio_y2x;
 dataX(dataX(:,5)<photonThred,:)=[];
 dataY(dataY(:,5)<photonThred,:)=[];
+dataX(dataX(:,1)>frame_thred,:)=[];
+dataY(dataY(:,1)>frame_thred,:)=[];
 
 %flip y
 
@@ -66,11 +68,17 @@ dataX(dataX(:,3)<(center(2)-round(ROI/2)) | dataX(:,3)>(center(2)+round(ROI/2)),
 
 dataY(dataY(:,2)<(center(1)-round(ROI/2)) | dataY(:,2)>(center(1)+round(ROI/2)),:)=[];
 dataY(dataY(:,3)<(center(2)-round(ROI/2)) | dataY(:,3)>(center(2)+round(ROI/2)),:)=[];
-%%
-% idx = ismember(dataX(:,2),brushedData1(:,1));
-% dataX(~idx,:) = []; 
-% idx = ismember(dataY(:,2),brushedData1(:,1));
-% dataY(~idx,:) = []; 
+
+figure();
+scatter(dataX(:,2),dataX(:,3),10,'filled'); hold on;
+scatter(W+dataY(:,2),dataY(:,3),10,'filled');
+axis image
+
+%% filter out closely closed emitters
+% thred = 40;
+% dataX = filterDenseEmitter(dataX,thred);
+% dataY = filterDenseEmitter(dataY,thred);
+
 
 %% pair the data with optimization
 % assume the only geometry difference is xy translation
@@ -80,8 +88,11 @@ lossF = @(tform)lossCaculate(tform,dataX,dataY);
 tform_y2x = fmincon(lossF,initial_guess_y2x);
 
 %% extract the paired data
+load('tform3.mat');
+[dataX_paired,dataY_paired] = pairedData(tformx2y,tform_y2x,dataX,dataY);
 loss = lossCaculate(tform_y2x,dataX,dataY);
-[dataX_paired,dataY_paired] = pairedData(tform_y2x,dataX,dataY);
+% [dataX_paired,dataY_paired] = pairedData(tform_y2x,dataX,dataY);
+
 figure(); 
 scatter(dataX_paired(:,2),dataX_paired(:,3),10,'filled','r'); axis image
 hold on;
@@ -97,9 +108,9 @@ xlabel('x in X channel(pixel)'); ylabel('distance');
 
 plot_pairs(dataX_paired,dataY_paired,[], [],tform_y2x); axis image;
 
-%% calculate the tform using polynomial fitting
- fixedPoints = dataY_paired(:,[2,3]);
- movingPoints = dataX_paired(:,[2,3]);
+%% calculate the tform using polynominal fitting
+fixedPoints = dataY_paired(:,[2,3]);
+movingPoints = dataX_paired(:,[2,3]);
 tformx2y = images.geotrans.PolynomialTransformation2D(movingPoints,fixedPoints,4);
 dataX_inver = transformPointsInverse(tformx2y,fixedPoints);
 
@@ -118,6 +129,8 @@ function loss = lossCaculate(tform_y2x,dataX,dataY)
 x_dataX = dataX(:,2);
 y_dataX = dataX(:,3);
 I_dataX = dataX(:,5);
+
+
 
 x_dataY = dataY(:,2)+tform_y2x(1);
 y_dataY = dataY(:,3)+tform_y2x(2);
@@ -151,14 +164,18 @@ loss = loss/count;
 end
 
 
-function [dataX_paired,dataY_paired] = pairedData(tform_y2x,dataX,dataY)
+function [dataX_paired,dataY_paired] = pairedData(tformx2y,tform_y2x,dataX,dataY)
 x_dataX = dataX(:,2);
 y_dataX = dataX(:,3);
 I_dataX = dataX(:,5);
 
-x_dataY = dataY(:,2)+tform_y2x(1);
-y_dataY = dataY(:,3)+tform_y2x(2);
+dataX_inver = transformPointsInverse(tformx2y,dataY(:,[2,3]));
+x_dataY = dataX_inver(:,1);
+y_dataY = dataX_inver(:,2);
 I_dataY = dataY(:,5);
+% x_dataY = dataY(:,2)+tform_y2x(1);
+% y_dataY = dataY(:,3)+tform_y2x(2);
+% I_dataY = dataY(:,5);
 
 loss = 0;
 dataX_paired = [];
@@ -251,4 +268,25 @@ scatter(dataY_orig(:,2)+offset(1),dataY_orig(:,3)+offset(2),10,"blue*");
 end
 xlim([300,1000]);
 ylim([0,400]);
+end
+
+
+function datafiltered = filterDenseEmitter(data,thred)
+
+datafiltered = [];
+
+for framei = 1:max(data(:,1))
+    idx = data(:,1) == framei;
+    data_cur = data(idx,:);
+    x_cur = data(idx,2);
+    y_cur = data(idx,3);
+    distance = (x_cur-x_cur.').^2+(y_cur-y_cur.').^2;
+    indx_close = distance<thred;
+    indx_close(distance==distance)=0;
+    data_cur(sum(indx_close,2)>1)=[];
+
+    datafiltered = [datafiltered;data_cur];
+    
+end
+
 end

@@ -1,6 +1,6 @@
 %fileName = 'F:\data\20210410 3D lipid+ATTO647N\';
-fileName = 'E:\Experimental_data\20220307 A1-LCD\';
-ID = 86;
+fileName = 'E:\Experimental_data\20220528 amyloid fibril\';
+ID = 7;
 offsetName = [fileName,'_',num2str(ID),'\_',num2str(ID),'_MMStack_Default.ome.tif'];
 Nimg = 100;
 
@@ -12,7 +12,7 @@ for i=1:Nimg
 end
 offset_mean = mean(offset,3);
 offset = offset_mean;
-save([fileName 'processes data\offSet_for_A1_LCD.mat'],'offset')
+save([fileName 'processed data\offSet_for_A1_LCD.mat'],'offset')
 %offset_ROI=offset_mean;imwrite(uint16(offset_ROI),'offset_ROI572_763.tif');
 
 

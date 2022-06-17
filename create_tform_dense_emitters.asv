@@ -1,6 +1,6 @@
 %caculate tform_x2y; means y_real_loc = tfrom(give x channel), or x_real_loc = tfrom_inverse(give y channel)
 
-fileFolder = "E:\Experimental_data\20220530 beads\processed data\saved_beads_loc_for_tform\";
+fileFolder = "E:\Experimental_data\20220530 amyloid fibril\processed data2\saved_beads_loc_for_tform\";
 mainDirContents = dir(fileFolder);
 mask = endsWith({mainDirContents.name},'tform');
 mainDirContents(~mask)=[];
@@ -48,9 +48,9 @@ pixel_sz = 1;
 photonThred = 1000; % in photon for y channel
 ratio_y2x = 1;
 
-center = [291,191]; %in pixel; directly get from the y channel image where the sample is located; have not flip the data
+center = [410,200]; %in pixel; directly get from the y channel image where the sample is located; have not flip the data
 center(1) = W-center(1);
-ROI = 300;
+ROI = 500;
 
 %filter data and process data
 %filter dim estimations
@@ -66,6 +66,11 @@ dataX(dataX(:,3)<(center(2)-round(ROI/2)) | dataX(:,3)>(center(2)+round(ROI/2)),
 
 dataY(dataY(:,2)<(center(1)-round(ROI/2)) | dataY(:,2)>(center(1)+round(ROI/2)),:)=[];
 dataY(dataY(:,3)<(center(2)-round(ROI/2)) | dataY(:,3)>(center(2)+round(ROI/2)),:)=[];
+
+%% filter out closely closed emitters
+dataX = filterDenseEmitter(dataX);
+dataY = filterDenseEmitter(dataY);
+
 %%
 % idx = ismember(dataX(:,2),brushedData1(:,1));
 % dataX(~idx,:) = []; 
@@ -251,4 +256,28 @@ scatter(dataY_orig(:,2)+offset(1),dataY_orig(:,3)+offset(2),10,"blue*");
 end
 xlim([300,1000]);
 ylim([0,400]);
+end
+
+
+function datafiltered = filterDenseEmitter(data,thred)
+
+aaa = 1;
+a= 1;
+
+for framei = 1:length(data(:,1))
+    idx = data(:,1) == framei;
+    x_cur = data(idx,2);
+    y_cur = data(idx,3);
+    distance = (x_cur-x_cur.').^2+(y_cur-y_cur.').^2;
+    indx_close = distance<thred;
+    indx_close(distance==distance)=0;
+    idx(sum(indx_close)>=1)
+    
+
+
+
+
+
+end
+
 end
